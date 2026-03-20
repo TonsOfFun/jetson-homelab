@@ -1,0 +1,12 @@
+---
+- name: restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+
+- name: restart jtop service
+  ansible.builtin.systemd:
+    name: jtop
+    state: restarted
+    enabled: true
+  ignore_errors: true   # jtop service may not exist until first run

@@ -1,0 +1,29 @@
+---
+# ── System ────────────────────────────────────────────────────────────────────
+timezone: "America/Los_Angeles"    # update to your TZ
+locale: "en_US.UTF-8"
+hostname: "jetson-homelab"
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+docker_compose_dir: "/opt/homelab"
+docker_log_max_size: "10m"
+docker_log_max_file: "3"
+
+# ── Container image versions ──────────────────────────────────────────────────
+# Bump these deliberately — don't blindly trust :latest in production
+homeassistant_image: "ghcr.io/home-assistant/home-assistant:stable"
+unifi_image:         "lscr.io/linuxserver/unifi-network-application:latest"
+mongo_image:         "mongo:4.4"     # HARD LIMIT: Mongo 5+ needs AVX — not on ARM/Jetson
+portainer_image:     "portainer/portainer-ce:latest"
+
+# ── UniFi ─────────────────────────────────────────────────────────────────────
+unifi_mongo_dbname: "unifi"
+unifi_mongo_host:   "unifi-db"
+unifi_mongo_port:   "27017"
+
+# ── Service ports ─────────────────────────────────────────────────────────────
+homeassistant_port: 8123     # informational only — HA uses network_mode: host
+unifi_https_port:   8443
+unifi_inform_port:  8080
+unifi_stun_port:    3478
+portainer_port:     9443

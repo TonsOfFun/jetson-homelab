@@ -1,0 +1,28 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ANSIBLE VAULT — encrypt this file before committing to git:
+#   ansible-vault encrypt ansible/group_vars/all/vault.yml
+#
+# To edit after encrypting:
+#   ansible-vault edit ansible/group_vars/all/vault.yml
+#
+# To view:
+#   ansible-vault view ansible/group_vars/all/vault.yml
+# ─────────────────────────────────────────────────────────────────────────────
+---
+
+# ── SSH / Login ───────────────────────────────────────────────────────────────
+vault_ansible_user: "justin"              # your Jetson username
+vault_ansible_password: "changeme"        # used for sudo if needed
+
+# ── MongoDB ───────────────────────────────────────────────────────────────────
+vault_mongo_root_user: "root"
+vault_mongo_root_password: "changeme_root"
+vault_mongo_unifi_user: "unifi"
+vault_mongo_unifi_password: "changeme_unifi"
+
+# ── Portainer ─────────────────────────────────────────────────────────────────
+# (Portainer sets its own admin password on first login — no secret needed here)
+
+# ── Future secrets go here ────────────────────────────────────────────────────
+# vault_ha_secrets_key: ""
+# vault_some_api_token: ""

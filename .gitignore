@@ -1,0 +1,31 @@
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# vault.yml must be encrypted before committing — but still tracked
+# These files must NEVER be committed
+.env
+*.vault-pass
+~/.ansible-vault-pass
+ansible/group_vars/all/vault.yml.bak
+
+# ── Compose runtime state ─────────────────────────────────────────────────────
+# Persistent data dirs — back these up separately, don't track in git
+compose/homeassistant/config/
+compose/unifi/data/
+compose/unifi/db/
+compose/portainer/data/
+
+# ── Ansible ───────────────────────────────────────────────────────────────────
+*.retry
+ansible/.pytest_cache/
+ansible/__pycache__/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

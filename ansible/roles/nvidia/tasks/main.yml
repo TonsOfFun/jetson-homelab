@@ -1,0 +1,58 @@
+---
+# ── Role: nvidia ──────────────────────────────────────────────────────────────
+# Install NVIDIA container toolkit for Jetson (L4T / ARM64)
+# Enables --runtime=nvidia / --gpus all in Docker containers
+
+- name: Add NVIDIA container toolkit GPG key
+  ansible.builtin.shell:
+    cmd: |
+      curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+        | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+- name: Add NVIDIA container toolkit apt repository
+  ansible.builtin.shell:
+    cmd: |
+      curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+        | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' \
+        > /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    creates: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+- name: Update apt cache after adding NVIDIA repo
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install nvidia-container-toolkit
+  ansible.builtin.apt:
+    name: nvidia-container-toolkit
+    state: present
+
+- name: Configure Docker to use NVIDIA runtime (nvidia-ctk is idempotent)
+  ansible.builtin.command:
+    cmd: nvidia-ctk runtime configure --runtime=docker
+  notify: restart docker
+
+- name: Verify NVIDIA runtime appears in daemon.json
+  ansible.builtin.command:
+    cmd: grep -q "nvidia" /etc/docker/daemon.json
+  register: nvidia_check
+  changed_when: false
+  failed_when: false
+
+- name: Report NVIDIA runtime status
+  ansible.builtin.debug:
+    msg: "NVIDIA container runtime {{ 'IS' if nvidia_check.rc == 0 else 'IS NOT' }} configured in daemon.json"
+
+- name: Smoke-test GPU access in Docker
+  ansible.builtin.command:
+    cmd: docker run --rm --runtime=nvidia --gpus all ubuntu:22.04 nvidia-smi
+  become_user: "{{ vault_ansible_user }}"
+  register: gpu_test
+  changed_when: false
+  failed_when: false   # not fatal — nvidia-smi behaves differently on Jetson vs discrete GPU
+
+- name: Report GPU smoke test result
+  ansible.builtin.debug:
+    msg: |
+      GPU smoke test {{ 'PASSED' if gpu_test.rc == 0 else 'returned non-zero (may be normal on Jetson — use tegrastats or jtop to verify)' }}
+      stdout: {{ gpu_test.stdout | default('(none)') }}

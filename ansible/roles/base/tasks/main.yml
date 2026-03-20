@@ -1,0 +1,90 @@
+---
+# ── Role: base ────────────────────────────────────────────────────────────────
+# System update, essential packages, SSH hardening, hostname, timezone
+
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname }}"
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Update apt cache and upgrade all packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Install essential base packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - git
+      - vim
+      - htop
+      - tmux
+      - unzip
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - python3-pip
+      - python3-docker        # required for Ansible docker modules
+      - net-tools
+      - nfs-common
+      - avahi-daemon          # mDNS — required for HA device discovery
+      - dbus                  # required for Bluetooth in HA
+    state: present
+
+- name: Install jetson-stats (jtop) for GPU/memory monitoring
+  ansible.builtin.pip:
+    name: jetson-stats
+    state: present
+    extra_args: "--break-system-packages"
+  notify: restart jtop service
+
+- name: Ensure SSH hardening config directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+
+- name: Harden SSH — disable password auth and root login
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    mode: "0600"
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+      AuthorizedKeysFile .ssh/authorized_keys
+      X11Forwarding no
+      AllowTcpForwarding no
+  notify: restart sshd
+
+- name: Ensure avahi-daemon is enabled and running
+  ansible.builtin.systemd:
+    name: avahi-daemon
+    enabled: true
+    state: started
+
+- name: Ensure compose root directory exists
+  ansible.builtin.file:
+    path: "{{ docker_compose_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ vault_ansible_user }}"
+    group: "{{ vault_ansible_user }}"
+
+- name: Set max power mode for Jetson (nvpmodel -m 0)
+  ansible.builtin.command:
+    cmd: nvpmodel -m 0
+  changed_when: false
+  ignore_errors: true   # not fatal if already set
+
+- name: Enable jetson_clocks for maximum CPU/GPU frequencies
+  ansible.builtin.command:
+    cmd: jetson_clocks
+  changed_when: false
+  ignore_errors: true   # not fatal if already set

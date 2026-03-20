@@ -1,0 +1,74 @@
+---
+# ── Role: homelab ─────────────────────────────────────────────────────────────
+# Deploys the Docker Compose stack to /opt/homelab on the Jetson
+
+- name: Ensure compose root directory exists
+  ansible.builtin.file:
+    path: "{{ docker_compose_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ vault_ansible_user }}"
+    group: "{{ vault_ansible_user }}"
+
+- name: Ensure data subdirectories exist
+  ansible.builtin.file:
+    path: "{{ docker_compose_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ vault_ansible_user }}"
+    group: "{{ vault_ansible_user }}"
+  loop:
+    - homeassistant/config
+    - unifi/data
+    - unifi/db
+    - portainer/data
+
+- name: Deploy docker-compose.yml from template
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ docker_compose_dir }}/docker-compose.yml"
+    mode: "0644"
+    owner: "{{ vault_ansible_user }}"
+    group: "{{ vault_ansible_user }}"
+
+- name: Deploy .env file (runtime secrets — restricted permissions)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ docker_compose_dir }}/.env"
+    mode: "0600"
+    owner: "{{ vault_ansible_user }}"
+    group: "{{ vault_ansible_user }}"
+
+- name: Deploy UniFi MongoDB init script
+  ansible.builtin.template:
+    src: init-mongo.js.j2
+    dest: "{{ docker_compose_dir }}/unifi/init-mongo.js"
+    mode: "0644"
+    owner: "{{ vault_ansible_user }}"
+    group: "{{ vault_ansible_user }}"
+
+- name: Pull all container images
+  ansible.builtin.command:
+    cmd: docker compose pull
+    chdir: "{{ docker_compose_dir }}"
+  become_user: "{{ vault_ansible_user }}"
+  tags: [pull]
+
+- name: Start / update compose stack
+  ansible.builtin.command:
+    cmd: docker compose up -d --remove-orphans
+    chdir: "{{ docker_compose_dir }}"
+  become_user: "{{ vault_ansible_user }}"
+  tags: [restart]
+
+- name: Show running containers
+  ansible.builtin.command:
+    cmd: docker compose ps
+    chdir: "{{ docker_compose_dir }}"
+  become_user: "{{ vault_ansible_user }}"
+  register: compose_status
+  changed_when: false
+
+- name: Print compose status
+  ansible.builtin.debug:
+    var: compose_status.stdout_lines

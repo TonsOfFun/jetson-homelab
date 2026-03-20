@@ -1,0 +1,6 @@
+---
+- name: restart compose stack
+  ansible.builtin.command:
+    cmd: docker compose restart
+    chdir: "{{ docker_compose_dir }}"
+  become_user: "{{ vault_ansible_user }}"

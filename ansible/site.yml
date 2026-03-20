@@ -1,0 +1,23 @@
+---
+# ── jetson-homelab master playbook ───────────────────────────────────────────
+# Full provision:  make provision
+# Single role:     make provision-base / provision-docker / provision-nvidia / provision-homelab
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Provision Jetson Orin Nano Super homelab
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: base
+      tags: [base]
+
+    - role: docker
+      tags: [docker]
+
+    - role: nvidia
+      tags: [nvidia]
+
+    - role: homelab
+      tags: [homelab, pull, restart]

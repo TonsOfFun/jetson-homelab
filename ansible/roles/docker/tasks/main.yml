@@ -1,0 +1,60 @@
+---
+# ── Role: docker ──────────────────────────────────────────────────────────────
+# Install Docker CE + Compose plugin (official Docker repo, ARM64/Ubuntu 22.04)
+
+- name: Add Docker GPG key
+  ansible.builtin.shell:
+    cmd: |
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+- name: Add Docker apt repository (ARM64 / Ubuntu 22.04 jammy)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    mode: "0644"
+    content: |
+      deb [arch=arm64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu jammy stable
+
+- name: Update apt cache after adding Docker repo
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install Docker CE, CLI, containerd, Buildx, and Compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Add user to docker group (allows docker commands without sudo)
+  ansible.builtin.user:
+    name: "{{ vault_ansible_user }}"
+    groups: docker
+    append: true
+
+- name: Configure Docker daemon (log limits, default runtime)
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "{{ docker_log_max_size }}",
+          "max-file": "{{ docker_log_max_file }}"
+        },
+        "default-runtime": "runc"
+      }
+  notify: restart docker
+  # Note: the nvidia role runs nvidia-ctk after this, which adds the nvidia
+  # runtime entry to daemon.json automatically.
+
+- name: Ensure Docker service is enabled and started
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
