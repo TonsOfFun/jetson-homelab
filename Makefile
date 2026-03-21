@@ -1,7 +1,7 @@
 VAULT_PASS_FILE := ~/.ansible-vault-pass
 ANSIBLE_DIR     := ansible
 INVENTORY       := $(ANSIBLE_DIR)/inventory/hosts.yml
-ANSIBLE_USER    := jetson
+ANSIBLE_USER    := tonsoffun
 
 .PHONY: help provision provision-base provision-docker provision-nvidia provision-homelab \
         vault-edit vault-view vault-encrypt pull restart logs status shell ping

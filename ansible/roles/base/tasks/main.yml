@@ -59,6 +59,7 @@
       PermitRootLogin no
       PubkeyAuthentication yes
       AuthorizedKeysFile .ssh/authorized_keys
+      PubkeyAcceptedAlgorithms +sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com
       X11Forwarding no
       AllowTcpForwarding no
   notify: restart sshd

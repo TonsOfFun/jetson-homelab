@@ -15,10 +15,11 @@ with NVIDIA container runtime ready for GPU workloads.
 jetson-homelab/
 ├── README.md
 ├── Makefile                        # convenience commands
+├── bootstrap-mac.sh                # one-time macOS setup
 ├── ansible/
 │   ├── site.yml                    # master playbook
 │   ├── inventory/
-│   │   └── hosts.yml               # your Jetson's IP/hostname
+│   │   └── hosts.yml               # Jetson connection details
 │   ├── group_vars/
 │   │   └── all/
 │   │       ├── vars.yml            # non-secret vars
@@ -37,15 +38,6 @@ jetson-homelab/
 
 ---
 
-## Prerequisites (macOS control machine)
-
-```bash
-brew install ansible
-pip3 install ansible passlib
-```
-
----
-
 ## Phase 1: Flash JetPack to USB
 
 1. Download the JetPack 7.x `.img` for Orin Nano from:
@@ -54,43 +46,73 @@ pip3 install ansible passlib
    - Select the `.img` → select your USB drive → Flash
 3. Boot your Jetson from USB — it will install to NVMe automatically
 4. Complete the Ubuntu OOBE (set username, password, timezone)
-   - **Use username `jetson`** or update `ansible_user` in `inventory/hosts.yml`
 5. After first boot, confirm NVMe is the root device: `lsblk`
 
 ---
 
-## Phase 2: Configure Inventory
+## Phase 2: Bootstrap Your Mac
 
-Edit `ansible/inventory/hosts.yml` — find your Jetson's IP from your router's DHCP leases:
+Run the bootstrap script once to install all dependencies:
 
-```yaml
-jetson:
-  hosts:
-    jetson-orin:
-      ansible_host: 192.168.1.XXX   # ← set this
+```bash
+chmod +x bootstrap-mac.sh
+./bootstrap-mac.sh
 ```
+
+This will:
+- Install Homebrew (if needed) and Ansible
+- Install Python packages (`passlib`)
+- Install Ansible Galaxy collections
+- Generate an SSH key — you'll be asked whether to use **Touch ID / passkey** (FIDO2 `ed25519-sk`) or a standard `ed25519` key
+- Create your Ansible Vault password file
+
+### Touch ID SSH (recommended)
+
+If your Mac supports it (Apple Silicon or T2 chip, macOS Ventura+), choose the passkey option during bootstrap. This generates a FIDO2 resident key stored in your Mac's Secure Enclave — every SSH connection requires a Touch ID tap.
+
+If you already have a standard key and want to upgrade later:
+
+```bash
+ssh-keygen -t ed25519-sk -C "jetson-homelab" -O resident -f ~/.ssh/id_ed25519_sk
+```
+
+Then update `ansible_ssh_private_key_file` in `ansible/inventory/hosts.yml` to `~/.ssh/id_ed25519_sk`.
 
 ---
 
-## Phase 3: Set Up Secrets
+## Phase 3: Copy SSH Key to Jetson
 
 ```bash
-# Create vault password file — keep this OUT of git, store it in 1Password/etc
-echo "your-strong-vault-password" > ~/.ansible-vault-pass
-chmod 600 ~/.ansible-vault-pass
+# For passkey/Touch ID key:
+ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub tonsoffun@10.1.1.187
 
+# For standard ed25519 key:
+ssh-copy-id tonsoffun@10.1.1.187
+```
+
+Verify passwordless access:
+
+```bash
+ssh tonsoffun@10.1.1.187
+```
+
+> **Note:** After provisioning, password auth is disabled. Make sure key auth works first.
+
+---
+
+## Phase 4: Set Up Secrets
+
+```bash
 # Edit the encrypted vault (opens $EDITOR)
 make vault-edit
 ```
 
 Fill in all values — see `ansible/group_vars/all/vault.yml` for the required keys.
 
----
-
-## Phase 4: SSH Key Auth
+If the vault isn't encrypted yet:
 
 ```bash
-ssh-copy-id jetson@192.168.1.XXX
+make vault-encrypt
 ```
 
 ---
@@ -110,9 +132,9 @@ make provision-homelab  # Compose stack only
 
 | Service           | URL                              |
 |-------------------|----------------------------------|
-| Home Assistant    | http://\<jetson-ip\>:8123        |
-| UniFi Controller  | https://\<jetson-ip\>:8443       |
-| Portainer         | https://\<jetson-ip\>:9443       |
+| Home Assistant    | http://10.1.1.187:8123           |
+| UniFi Controller  | https://10.1.1.187:8443          |
+| Portainer         | https://10.1.1.187:9443          |
 
 ---
 
@@ -148,7 +170,7 @@ Monitor with `jtop` (installed by the base role).
 ## Disaster Recovery
 
 1. Flash USB → boot → complete OOBE
-2. `ssh-copy-id jetson@<new-ip>`
+2. `ssh-copy-id tonsoffun@<new-ip>`
 3. Update IP in `inventory/hosts.yml`
 4. `make provision`
 

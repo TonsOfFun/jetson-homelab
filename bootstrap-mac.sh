@@ -46,12 +46,31 @@ ansible-galaxy collection install -r requirements.yml --upgrade
 cd ..
 
 # ── SSH key ───────────────────────────────────────────────────────────────────
+# Prefer FIDO2/passkey key (Touch ID on macOS) if available, fall back to ed25519
+SSH_SK_KEY=~/.ssh/id_ed25519_sk
 SSH_KEY=~/.ssh/id_ed25519
-if [ ! -f "$SSH_KEY" ]; then
-  info "Generating SSH key at $SSH_KEY ..."
-  ssh-keygen -t ed25519 -C "jetson-homelab" -f "$SSH_KEY" -N ""
-else
+
+if [ -f "$SSH_SK_KEY" ]; then
+  info "FIDO2/passkey SSH key already exists at $SSH_SK_KEY — skipping"
+elif [ -f "$SSH_KEY" ]; then
   info "SSH key already exists at $SSH_KEY — skipping"
+  warn "To upgrade to Touch ID, run: ssh-keygen -t ed25519-sk -C \"jetson-homelab\" -O resident"
+else
+  echo ""
+  info "Generating SSH key..."
+  echo "  Option 1: FIDO2/passkey (Touch ID) — requires macOS Ventura+ and a compatible Mac"
+  echo "  Option 2: Standard ed25519 key"
+  echo ""
+  read -rp "Use Touch ID / passkey for SSH? (y/n): " use_sk
+  if [[ "$use_sk" =~ ^[Yy] ]]; then
+    info "Generating FIDO2 resident key (Touch ID will prompt)..."
+    ssh-keygen -t ed25519-sk -C "jetson-homelab" -O resident -f "$SSH_SK_KEY"
+    info "Passkey SSH key saved to $SSH_SK_KEY"
+    info "Update ansible_ssh_private_key_file in inventory/hosts.yml to: ~/.ssh/id_ed25519_sk"
+  else
+    ssh-keygen -t ed25519 -C "jetson-homelab" -f "$SSH_KEY" -N ""
+    info "SSH key saved to $SSH_KEY"
+  fi
 fi
 
 # ── Vault password file ───────────────────────────────────────────────────────
@@ -86,12 +105,16 @@ fi
 echo ""
 info "Bootstrap complete. Next steps:"
 echo ""
-echo "  1. Edit ansible/inventory/hosts.yml — set your Jetson's IP"
-echo "  2. Edit secrets:     make vault-edit"
+echo "  1. Verify ansible/inventory/hosts.yml has the correct IP and user"
+echo "  2. Copy SSH key to Jetson:"
+if [ -f "$SSH_SK_KEY" ]; then
+  echo "     ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub tonsoffun@10.1.1.187"
+else
+  echo "     ssh-copy-id tonsoffun@10.1.1.187"
+fi
+echo "  3. Edit secrets:       make vault-edit"
 echo "     (change all CHANGE_ME values, then save and quit)"
-echo "  3. Encrypt vault:    make vault-encrypt"
-echo "  4. Copy SSH key to Jetson (after first boot + OOBE):"
-echo "     ssh-copy-id jetson@<jetson-ip>"
-echo "  5. Test connectivity: make ping"
-echo "  6. Full provision:   make provision"
+echo "  4. Encrypt vault:      make vault-encrypt"
+echo "  5. Test connectivity:  make ping"
+echo "  6. Full provision:     make provision"
 echo ""
