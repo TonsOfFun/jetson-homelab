@@ -37,7 +37,7 @@ fi
 
 # ── Python packages needed by Ansible ────────────────────────────────────────
 info "Installing Python packages (passlib for password hashing)..."
-pip3 install --quiet passlib
+pip3 install --quiet --break-system-packages passlib
 
 # ── Ansible Galaxy collections ────────────────────────────────────────────────
 info "Installing Ansible Galaxy collections..."

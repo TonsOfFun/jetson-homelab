@@ -1,4 +1,7 @@
 ---
+# ── Ansible ─────────────────────────────────────────────────────────────────
+ansible_become_password: "{{ vault_ansible_password }}"
+
 # ── System ────────────────────────────────────────────────────────────────────
 timezone: "America/Los_Angeles"    # update to your TZ
 locale: "en_US.UTF-8"
