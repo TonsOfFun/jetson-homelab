@@ -35,6 +35,9 @@
       - nfs-common
       - avahi-daemon          # mDNS — required for HA device discovery
       - dbus                  # required for Bluetooth in HA
+      - wpasupplicant         # WiFi support
+      - wireless-tools        # iwconfig, iwlist, etc.
+      - rfkill                # manage wireless device state
     state: present
 
 - name: Install jetson-stats (jtop) for GPU/memory monitoring
@@ -88,3 +91,43 @@
     cmd: jetson_clocks
   changed_when: false
   ignore_errors: true   # not fatal if already set
+
+# ── WiFi Configuration (optional) ────────────────────────────────────────────
+- name: Configure WiFi
+  when: wifi_enabled | default(false)
+  block:
+    - name: Ensure WiFi is not blocked by rfkill
+      ansible.builtin.command:
+        cmd: rfkill unblock wifi
+      changed_when: false
+      ignore_errors: true
+
+    - name: Deploy wpa_supplicant configuration
+      ansible.builtin.template:
+        src: wpa_supplicant.conf.j2
+        dest: /etc/wpa_supplicant/wpa_supplicant.conf
+        owner: root
+        group: root
+        mode: "0600"
+      notify: restart wpa_supplicant
+
+    - name: Deploy WiFi interface configuration
+      ansible.builtin.template:
+        src: wifi-interface.j2
+        dest: "/etc/network/interfaces.d/{{ wifi_interface | default('wlan0') }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart networking
+
+    - name: Enable and start wpa_supplicant service
+      ansible.builtin.systemd:
+        name: wpa_supplicant
+        enabled: true
+        state: started
+
+    - name: Bring up WiFi interface
+      ansible.builtin.command:
+        cmd: "ip link set {{ wifi_interface | default('wlan0') }} up"
+      changed_when: false
+      ignore_errors: true

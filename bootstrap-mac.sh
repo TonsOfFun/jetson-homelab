@@ -27,6 +27,26 @@ else
   info "Homebrew already installed — skipping"
 fi
 
+# ── Jetson IP configuration ──────────────────────────────────────────────────
+# Accept IP as command line argument or prompt for manual entry
+# Future: auto-detect via custom hostname after creating custom .img
+JETSON_IP="${1:-}"
+
+if [ -z "$JETSON_IP" ]; then
+  echo ""
+  info "No Jetson IP provided as argument"
+  echo "  Usage: ./bootstrap-mac.sh <JETSON_IP>"
+  echo "  Example: ./bootstrap-mac.sh 10.1.1.122"
+  echo ""
+  read -rp "Enter Jetson IP address: " JETSON_IP
+  if [ -z "$JETSON_IP" ]; then
+    warn "No IP provided - skipping Jetson configuration"
+    warn "Run again with: ./bootstrap-mac.sh <JETSON_IP>"
+  fi
+else
+  info "Using Jetson IP from argument: $JETSON_IP"
+fi
+
 # ── Ansible ──────────────────────────────────────────────────────────────────
 if ! command -v ansible &>/dev/null; then
   info "Installing Ansible..."
@@ -101,16 +121,41 @@ else
   warn "vault.yml exists but is not encrypted — run: make vault-encrypt"
 fi
 
+# ── Update inventory with discovered Jetson IP ───────────────────────────────
+if [ -n "$JETSON_IP" ]; then
+  HOSTS_FILE="ansible/inventory/hosts.yml"
+  if [ -f "$HOSTS_FILE" ]; then
+    # Update the IP in the hosts file
+    CURRENT_IP=$(grep -oE 'ansible_host: [0-9.]+' "$HOSTS_FILE" | head -1 | cut -d' ' -f2)
+    if [ "$CURRENT_IP" != "$JETSON_IP" ]; then
+      info "Updating inventory IP from $CURRENT_IP to $JETSON_IP"
+      sed -i '' "s/ansible_host: .*/ansible_host: $JETSON_IP/" "$HOSTS_FILE"
+    else
+      info "Inventory already has correct IP: $JETSON_IP"
+    fi
+  fi
+fi
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 info "Bootstrap complete. Next steps:"
 echo ""
-echo "  1. Verify ansible/inventory/hosts.yml has the correct IP and user"
-echo "  2. Copy SSH key to Jetson:"
-if [ -f "$SSH_SK_KEY" ]; then
-  echo "     ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub tonsoffun@10.1.1.187"
+if [ -n "$JETSON_IP" ]; then
+  echo "  1. ✓ Jetson found at $JETSON_IP (inventory updated)"
+  echo "  2. Copy SSH key to Jetson:"
+  if [ -f "$SSH_SK_KEY" ]; then
+    echo "     ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub tonsoffun@$JETSON_IP"
+  else
+    echo "     ssh-copy-id tonsoffun@$JETSON_IP"
+  fi
 else
-  echo "     ssh-copy-id tonsoffun@10.1.1.187"
+  echo "  1. Manually update ansible/inventory/hosts.yml with Jetson IP"
+  echo "  2. Copy SSH key to Jetson:"
+  if [ -f "$SSH_SK_KEY" ]; then
+    echo "     ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub tonsoffun@<JETSON_IP>"
+  else
+    echo "     ssh-copy-id tonsoffun@<JETSON_IP>"
+  fi
 fi
 echo "  3. Edit secrets:       make vault-edit"
 echo "     (change all CHANGE_ME values, then save and quit)"

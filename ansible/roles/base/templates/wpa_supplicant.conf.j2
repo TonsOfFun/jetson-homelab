@@ -1,0 +1,30 @@
+# ── WPA Supplicant Configuration ─────────────────────────────────────────────
+# Managed by Ansible — manual changes will be overwritten
+#
+# Interface: {{ wifi_interface | default('wlan0') }}
+
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+country={{ wifi_country_code | default('US') }}
+
+network={
+    ssid="{{ vault_wifi_ssid }}"
+    psk="{{ vault_wifi_password }}"
+    key_mgmt=WPA-PSK
+{% if wifi_priority is defined %}
+    priority={{ wifi_priority }}
+{% endif %}
+{% if wifi_hidden | default(false) %}
+    scan_ssid=1
+{% endif %}
+}
+
+{% if vault_wifi_ssid_backup is defined and vault_wifi_password_backup is defined %}
+# Backup network (lower priority)
+network={
+    ssid="{{ vault_wifi_ssid_backup }}"
+    psk="{{ vault_wifi_password_backup }}"
+    key_mgmt=WPA-PSK
+    priority={{ wifi_backup_priority | default(1) }}
+}
+{% endif %}

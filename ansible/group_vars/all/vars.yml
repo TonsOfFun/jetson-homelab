@@ -30,3 +30,12 @@ unifi_https_port:   8443
 unifi_inform_port:  8080
 unifi_stun_port:    3478
 portainer_port:     9443
+
+# ── WiFi Configuration ───────────────────────────────────────────────────────
+# Set wifi_enabled: true to configure WiFi (requires vault_wifi_ssid/password)
+wifi_enabled: false          # toggle to true when you need WiFi
+wifi_interface: "wlan0"      # default interface name on Jetson
+wifi_country_code: "US"      # regulatory domain (US, GB, DE, etc.)
+wifi_priority: 10            # priority for primary network
+wifi_hidden: false           # set true if SSID is hidden
+# wifi_backup_priority: 1    # uncomment if using backup network

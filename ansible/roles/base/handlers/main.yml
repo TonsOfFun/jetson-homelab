@@ -10,3 +10,14 @@
     state: restarted
     enabled: true
   ignore_errors: true   # jtop service may not exist until first run
+
+- name: restart wpa_supplicant
+  ansible.builtin.systemd:
+    name: wpa_supplicant
+    state: restarted
+
+- name: restart networking
+  ansible.builtin.systemd:
+    name: networking
+    state: restarted
+  ignore_errors: true   # may fail briefly during network changes

@@ -1,0 +1,7 @@
+# ── WiFi Interface Configuration ─────────────────────────────────────────────
+# Managed by Ansible — manual changes will be overwritten
+
+auto {{ wifi_interface | default('wlan0') }}
+allow-hotplug {{ wifi_interface | default('wlan0') }}
+iface {{ wifi_interface | default('wlan0') }} inet dhcp
+    wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
